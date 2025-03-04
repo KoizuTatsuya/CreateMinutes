@@ -1,7 +1,6 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/history_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -38,27 +37,13 @@ class MyHomePage extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          Text('＊＊＊＊'),
+          Text('A random AWESOME idea！てst:'),
           Text(appState.current.asLowerCase),
-          // ElevatedButton(
-          //   onPressed: () {
-          //     print('button pressed!');
-          //   },
-          //   child: Text('Next'),
-          // ),
           ElevatedButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => HistoryScreen()),
-              );
+              print('button pressed!');
             },
-            child: Text('Go to Data List Screen'),
-          ),
-          Image.asset(
-            'assets/images/Navi/watch_history.png',
-            width: 25,
-            height: 25,
+            child: Text('Next'),
           ),
         ],
       ),
