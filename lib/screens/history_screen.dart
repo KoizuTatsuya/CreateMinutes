@@ -1,26 +1,80 @@
 import 'package:flutter/material.dart';
 import 'navigation_screen.dart';
+import '../components/database_service.dart';
+import '../components/note.dart';
+import 'detail_screen.dart';
+import 'package:intl/intl.dart';
 
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
+class HistoryScreen extends StatefulWidget {
+  // const HistoryScreen({super.key});
+
+  @override
+  HistoryScreenState createState() => HistoryScreenState();
+}
+
+class HistoryScreenState extends State<HistoryScreen> {
+  late Future<List<Note>> _notesList;
+
+  @override
+  void initState() {
+    super.initState();
+    _notesList = DatabaseService.instance.getNotes();
+  }
+
+  // void _refreshNotes() {
+  //   setState(() {
+  //     _notesList = DatabaseService.instance.getNotes();
+  //   });
+  // }
+
+  String getCurrentDateTime() {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyyMMddHHmmss');
+    return formatter.format(now);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Data List Screen'),
-      ),
+      appBar: AppBar(title: Text('メモ一覧')),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('This is the data list screen'),
-                SizedBox(height: 100), // スクロール可能なコンテンツの例
-              ],
-            ),
+          FutureBuilder<List<Note>>(
+            future: _notesList,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return Center(child: CircularProgressIndicator());
+              }
+              final notes = snapshot.data!;
+              return ListView.builder(
+                itemCount: notes.length,
+                itemBuilder: (context, index) {
+                  final note = notes[index];
+                  return ListTile(
+                    title: Text('${note.title}__${note.id}'),
+                    subtitle: Text(note.content),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DetailScreen(note: note),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
+          // ElevatedButton(
+          //   onPressed: () async {
+          //     await DatabaseService.instance.addNote(
+          //       Note(title: 'NEW_${getCurrentDateTime()}', content: '詳細情報'),
+          //     );
+          //     _refreshNotes();
+          //   },
+          //   child: Icon(Icons.add),
+          // ),
           Align(
             alignment: Alignment.bottomCenter,
             child: NavigationScreen(),
@@ -30,3 +84,33 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 }
+
+// class HistoryScreen2 extends StatelessWidget {
+//   const HistoryScreen2({super.key});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: Text('履歴'),
+//       ),
+//       body: Stack(
+//         children: [
+//           SingleChildScrollView(
+//             child: Column(
+//               mainAxisAlignment: MainAxisAlignment.center,
+//               children: [
+//                 Text('This is the data list screen'),
+//                 SizedBox(height: 100), // スクロール可能なコンテンツの例
+//               ],
+//             ),
+//           ),
+//           Align(
+//             alignment: Alignment.bottomCenter,
+//             child: NavigationScreen(),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }

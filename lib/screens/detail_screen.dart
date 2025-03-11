@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 import 'navigation_screen.dart';
+import '../components/note.dart';
 
-class DataDetailScreen extends StatelessWidget {
-  const DataDetailScreen({super.key});
+class DetailScreen extends StatelessWidget {
+  // const DetailScreen({super.key});
+  final Note note;
+
+  DetailScreen({required this.note});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Data Detail Screen'),
+        title: Text(note.title),
       ),
+      // body: Stack(
+      //   // padding: EdgeInsets.all(16.0),
+      //   // child: Text(note.content, style: TextStyle(fontSize: 18)),
+
+      // ),
+
       body: Stack(
         children: [
           SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('This is the data detail screen'),
-                SizedBox(height: 100), // スクロール可能なコンテンツの例
+                Text(note.content, style: TextStyle(fontSize: 18)),
               ],
             ),
           ),

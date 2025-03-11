@@ -1,7 +1,10 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'screens/history_screen.dart';
+// import 'dart:io';
 
 void main() {
   runApp(MyApp());
@@ -33,35 +36,45 @@ class MyAppState extends ChangeNotifier {
 class MyHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-
     return Scaffold(
-      body: Column(
-        children: [
-          Text('＊＊＊＊'),
-          Text(appState.current.asLowerCase),
-          // ElevatedButton(
-          //   onPressed: () {
-          //     print('button pressed!');
-          //   },
-          //   child: Text('Next'),
-          // ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => HistoryScreen()),
+      body: Center(
+        child: FutureBuilder<String>(
+          future: _getFullPath(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('エラー: ${snapshot.error}');
+            } else {
+              var fullPath = snapshot.data ?? 'パスが見つかりません';
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('議事録作成ツール'),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => HistoryScreen()),
+                      );
+                    },
+                    child: Text('データ表示'),
+                  ),
+                  //Text(fullPath),
+                ],
               );
-            },
-            child: Text('Go to Data List Screen'),
-          ),
-          Image.asset(
-            'assets/images/Navi/watch_history.png',
-            width: 25,
-            height: 25,
-          ),
-        ],
+            }
+          },
+        ),
       ),
     );
+  }
+
+  Future<String> _getFullPath() async {
+    final directory = await getApplicationDocumentsDirectory();
+    // return path.join(directory.path, 'folder', 'file.txt');
+    return path.join(directory.path);
   }
 }
