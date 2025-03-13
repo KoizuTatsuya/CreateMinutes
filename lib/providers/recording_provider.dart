@@ -1,166 +1,217 @@
-import 'package:english_words/english_words.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter_sound/flutter_sound.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:io';
 
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => MyAppState(),
-      child: MaterialApp(
-        title: 'Namer App',
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
-        ),
-        home: MyHomePage(),
-      ),
-    );
-  }
-}
-
-class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
-}
-
-class MyHomePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-
-    return Scaffold(
-      body: Column(
-        children: [
-          Text('A random AWESOME idea！てst:'),
-          Text(appState.current.asLowerCase),
-          ElevatedButton(
-            onPressed: () {
-              print('button pressed!');
-            },
-            child: Text('Next'),
-          ),
-        ],
-      ),
-    );
-  }
-  
+/// 録音状態を定義する列挙型
+enum RecordingStatus {
+  idle,
+  recording,
+  paused,
+  stopped,
 }
 
 class RecordingProvider extends ChangeNotifier {
-  FlutterSoundRecorder _recorder = FlutterSoundRecorder();
-  FlutterSoundPlayer _player = FlutterSoundPlayer();
+  final _record = AudioRecorder();
 
-  bool _isRecording = false;
-  bool _isPlaying = false;
-  String? _filePath;
-  List<String> _recordings = [];
+  RecordingStatus _recordingStatus = RecordingStatus.idle;
+  RecordingStatus get recordingStatus => _recordingStatus;
 
-  bool get isRecording => _isRecording;
-  bool get isPlaying => _isPlaying;
-  List<String> get recordings => _recordings;
+  String? _recordedFilePath;
+  String? get recordedFilePath => _recordedFilePath;
 
-  RecordingProvider() {
-    _init();
-  }
+  String _transcribedText = '';
+  String get transcribedText => _transcribedText;
+  String _minutesFormattedText = '';
+  String get minutesFormattedText => _minutesFormattedText;
 
-  Future<void> _init() async {
-    await _recorder.openRecorder();
-    await _player.openPlayer();
-    await _requestPermissions();
-  }
-
-  Future<void> _requestPermissions() async {
-    await Permission.microphone.request();
-    await Permission.storage.request();
-  }
-
+  /// 録音を開始
   Future<void> startRecording() async {
-    if (!_recorder.isRecording) {
-      Directory tempDir = await getApplicationDocumentsDirectory();
-      String filePath = '${tempDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.aac';
+    final status = await Permission.microphone.request();
+    if (status.isGranted) {
+      if (await _record.isRecording()) {
+        await _record.stop();
+      }
 
-      await _recorder.startRecorder(toFile: filePath);
-      _filePath = filePath;
-      _isRecording = true;
+      // 録音ファイルのパスを生成
+      final directory = await getExternalStorageDirectory(); // ←外部ストレージに変更
+      final filePath = path.join(
+          directory!.path, 'record_${DateTime.now().millisecondsSinceEpoch}.m4a');
+
+      // 録音を開始
+      await _record.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: filePath,
+      );
+
+      _recordedFilePath = filePath;
+      _recordingStatus = RecordingStatus.recording;
+      notifyListeners();
+    } else {
+      debugPrint('マイクへのアクセスが許可されていません。');
+    }
+  }
+
+  /// 録音を一時停止
+  Future<void> pauseRecording() async {
+    if (await _record.isRecording()) {
+      await _record.pause();
+      _recordingStatus = RecordingStatus.paused;
       notifyListeners();
     }
   }
 
+  /// 一時停止から再開
+  Future<void> resumeRecording() async {
+    if (await _record.isPaused()) {
+      await _record.resume();
+      _recordingStatus = RecordingStatus.recording;
+      notifyListeners();
+    }
+  }
+
+  /// 録音を停止してファイルを保存
   Future<void> stopRecording() async {
-    if (_recorder.isRecording) {
-      await _recorder.stopRecorder();
-      if (_filePath != null) {
-        _recordings.add(_filePath!);
+    if (await _record.isRecording() || await _record.isPaused()) {
+      final path = await _record.stop();
+      debugPrint('録音ファイルのパス: $path');
+      _recordedFilePath = path;
+      _recordingStatus = RecordingStatus.stopped;
+      notifyListeners();
+    }
+  }
+
+  /// GeminiFlash APIを利用した文字起こしリクエスト
+ Future<void> transcribeAudio() async {
+    if (_recordedFilePath == null || _recordedFilePath!.isEmpty) {
+      debugPrint('録音ファイルがありません。');
+      return;
+    }
+
+    //      final meetingScreen = MeetingTranscriptScreen().createState();
+    //  meetingScreen.pickAndUploadFile();
+
+    try {
+      // ✅ Gemini API キーを設定
+      const String apiKey = 'AIzaSyBG6k5F9XIi65zB-e6gNEL4uhu0XIjH93M';
+      final model = GenerativeModel(model: 'gemini-1.5-pro', apiKey: apiKey);
+
+      
+
+      // ✅ 音声ファイルを Base64 に変換
+      final File audioFile = File(_recordedFilePath!);
+      final Uint8List audioBytes = await audioFile.readAsBytes();
+
+      // ✅ Gemini に送るプロンプト（音声を文字起こし）
+      final String transcriptionPrompt = '''
+        この音声は、ある会議の音声です。この音声をもとに会議の要約を作成してください。
+        音声に含まれていない情報をでっち上げたり、冗長になったりしてはいけません。
+
+        まず、会議の概要、何が議論されたのか、会議の結論、アクションアイテムを冒頭にまとめて記載してください。
+        会議の概要には、会議名、日時、参加者が必要です。開催日時などが不明の場合は「不明」と記載してください。
+        また内容はMECEである必要があります。
+
+        その後、会議の流れを記載します。
+        会議の流れは下記の形式で、それぞれのタイムスタンプごとの話題の概要を記載します。
+        もしも補足するべき内容があれば、備考に記載してください。表の中はすべて左詰となるようにします。
+        |タイムスタンプ|話題|備考|
+      ''';
+
+      print("🔹 ファイルパス: $_recordedFilePath");
+      print("🔹 読み込んだバイト数: ${audioBytes.length}");
+      print("🔹 最初の 10 バイト: ${audioBytes.sublist(0, 10)}");
+
+      final contents = [
+        Content.text(transcriptionPrompt),
+        Content.data('audio/wav', audioBytes), // ✅ 音声データを送る
+      ];
+
+      // ✅ Gemini に送信（文字起こし）
+      GenerateContentResponse response = await model.generateContent(contents);
+
+      print("🔹 結果: ${response.text}");
+
+      if (response.text != null) {
+        _transcribedText = response.text!; // 文字起こし結果を保存
+
+        // // ✅ 議事録フォーマットに変換
+        // final String minutesPrompt = '''
+        //   次の文字起こしデータを議事録形式に整形してください。
+        //   【文字起こしデータ】
+        //   $_transcribedText
+
+        //   【議事録フォーマット】
+        //   会議タイトル：
+        //   日時：
+        //   参加者：
+        //   議題：
+        //   決定事項：
+        // ''';
+
+        // final GenerateContentResponse minutesResponse =
+        //     await model.generateContent([Content.text(minutesPrompt)]);
+        final GenerateContentResponse minutesResponse = response;
+
+        if (minutesResponse.text != null) {
+          _minutesFormattedText = minutesResponse.text!;
+          notifyListeners(); // ✅ UI に通知
+        } else {
+          debugPrint('議事録変換に失敗しました。');
+        }
+      } else {
+        debugPrint('Gemini APIエラー: 文字起こし失敗');
       }
-      _isRecording = false;
-      notifyListeners();
+    } catch (e) {
+      debugPrint('API呼び出し中にエラーが発生しました: $e');
     }
   }
 
-  Future<void> toggleRecording() async {
-    if (_isRecording) {
-      await stopRecording();
-    } else {
-      await startRecording();
-    }
-  }
+  // Future<String> convertToMinutesFormat(String transcript) async {
+  //   final dio = Dio();
+  //   try {
+  //     // service-account.json を読み込む
+  //     final serviceAccountJson =
+  //         await rootBundle.loadString('assets/service-account.json');
+  //     final Map<String, dynamic> serviceAccount = json.decode(serviceAccountJson);
 
-  Future<void> playRecording(String path) async {
-    if (!_player.isPlaying) {
-      await _player.startPlayer(fromURI: path);
-      _isPlaying = true;
-      notifyListeners();
+  //     // Gemini API呼び出し
+  //     final response = await dio.post(
+  //       'https://api.geminiflash.com/v1/chat', // Gemini APIのエンドポイント
+  //       data: json.encode({
+  //         'auth': serviceAccount, // 認証情報
+  //         'prompt': '''
+  //           次の文章を議事録の形式に整形してください。
 
-      _player.onStopped.listen((event) {
-        _isPlaying = false;
-        notifyListeners();
-      });
-    }
-  }
+  //           【文字起こし内容】
+  //           $transcript
 
-  Future<void> stopPlaying() async {
-    if (_player.isPlaying) {
-      await _player.stopPlayer();
-      _isPlaying = false;
-      notifyListeners();
-    }
-  }
+  //           【議事録テンプレート】
+  //           会議タイトル：
+  //           日時：
+  //           参加者：
+  //           議題：
+  //           決定事項：
+  //         '''
+  //       }),
+  //     );
 
-  Future<void> togglePlaying(String path) async {
-    if (_isPlaying) {
-      await stopPlaying();
-    } else {
-      await playRecording(path);
-    }
-  }
-
-  void deleteRecording(int index) {
-    if (index >= 0 && index < _recordings.length) {
-      File file = File(_recordings[index]);
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
-      _recordings.removeAt(index);
-      notifyListeners();
-    }
-  }
-
-  @override
-  void dispose() {
-    _recorder.closeRecorder();
-    _player.closePlayer();
-    super.dispose();
-  }
+  //     if (response.statusCode == 200) {
+  //       _minutesFormattedText = response.data['answer'];
+  //       notifyListeners();
+  //       return 'エラー: Gemini APIで問題が発生しました。'; // エラー時の返却値
+  //     } else {
+  //       debugPrint('Gemini APIエラー: ${response.statusCode}');
+  //       return 'エラー: Gemini APIで問題が発生しました。'; // エラー時の返却値
+  //     }
+  //   } catch (e) {
+  //     debugPrint('API呼び出し中にエラーが発生しました: $e');
+  //     return 'エラーが発生しました: $e'; // 例外時の返却値
+  //   }
+  // }
 }
