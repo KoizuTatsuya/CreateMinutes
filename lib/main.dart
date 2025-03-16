@@ -4,10 +4,39 @@ import 'package:provider/provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'screens/history_screen.dart';
+import 'providers/recording_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 // import 'dart:io';
 
 void main() {
-  runApp(MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  requestPermissions() ;
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RecordingProvider()),
+      ],
+      child: MyApp(),
+    ),
+  );
+}
+
+Future<void> requestPermissions() async {
+  // すべてのストレージ権限をリクエスト
+  Map<Permission, PermissionStatus> statuses = await [
+    Permission.storage,
+    Permission.manageExternalStorage, // Android 10 以上向け
+  ].request();
+
+  // 許可されているか確認
+  if (statuses[Permission.storage]!.isGranted &&
+      statuses[Permission.manageExternalStorage]!.isGranted) {
+    print("ストレージアクセス許可済み");
+  } else {
+    print("ストレージアクセスが拒否されました。設定から手動で許可してください。");
+    openAppSettings(); // 設定画面を開く
+  }
 }
 
 class MyApp extends StatelessWidget {

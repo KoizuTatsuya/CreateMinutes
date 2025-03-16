@@ -1,0 +1,2 @@
+C:/Users/tkoizu/Documents/KoizuLab/develop/CreateMinutes/android/app/.cxx/Debug/91k4r2u2/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/tkoizu/Documents/KoizuLab/develop/CreateMinutes/android/app/.cxx/Debug/91k4r2u2/x86_64/CMakeFiles/rebuild_cache.dir
