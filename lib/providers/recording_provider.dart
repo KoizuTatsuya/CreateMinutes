@@ -38,8 +38,8 @@ class RecordingProvider extends ChangeNotifier {
 
       // 録音ファイルのパスを生成
       final directory = await getExternalStorageDirectory(); // ←外部ストレージに変更
-      final filePath = path.join(
-          directory!.path, 'record_${DateTime.now().millisecondsSinceEpoch}.m4a');
+      final filePath = path.join(directory!.path,
+          'record_${DateTime.now().millisecondsSinceEpoch}.m4a');
 
       // 録音を開始
       await _record.start(
@@ -85,7 +85,7 @@ class RecordingProvider extends ChangeNotifier {
   }
 
   /// GeminiFlash APIを利用した文字起こしリクエスト
- Future<void> transcribeAudio() async {
+  Future<void> transcribeAudio() async {
     if (_recordedFilePath == null || _recordedFilePath!.isEmpty) {
       debugPrint('録音ファイルがありません。');
       return;
@@ -99,14 +99,12 @@ class RecordingProvider extends ChangeNotifier {
       const String apiKey = 'AIzaSyBG6k5F9XIi65zB-e6gNEL4uhu0XIjH93M';
       final model = GenerativeModel(model: 'gemini-1.5-pro', apiKey: apiKey);
 
-      
-
       // ✅ 音声ファイルを Base64 に変換
       final File audioFile = File(_recordedFilePath!);
       final Uint8List audioBytes = await audioFile.readAsBytes();
 
       // ✅ Gemini に送るプロンプト（音声を文字起こし）
-      final String transcriptionPrompt = '''
+      const String transcriptionPrompt = '''
         この音声は、ある会議の音声です。この音声をもとに会議の要約を作成してください。
         音声に含まれていない情報をでっち上げたり、冗長になったりしてはいけません。
 

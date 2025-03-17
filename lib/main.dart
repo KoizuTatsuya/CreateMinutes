@@ -6,12 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'screens/history_screen.dart';
 import 'providers/recording_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sqflite/sqflite.dart';
 
 // import 'dart:io';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  requestPermissions() ;
+  requestPermissions();
   runApp(
     MultiProvider(
       providers: [
@@ -37,6 +38,12 @@ Future<void> requestPermissions() async {
     print("ストレージアクセスが拒否されました。設定から手動で許可してください。");
     openAppSettings(); // 設定画面を開く
   }
+}
+
+Future<void> deleteDB() async {
+  final dbPath = await getDatabasesPath();
+  final delpath = path.join(dbPath, 'notes.db');
+  await deleteDatabase(delpath);
 }
 
 class MyApp extends StatelessWidget {
@@ -90,6 +97,16 @@ class MyHomePage extends StatelessWidget {
                       );
                     },
                     child: Text('データ表示'),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await deleteDB();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('データベースがリセットされました')),
+                      );
+                    },
+                    child: Text('DBリセット'),
                   ),
                   //Text(fullPath),
                 ],

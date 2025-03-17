@@ -36,7 +36,7 @@ class HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('メモ一覧')),
+      appBar: AppBar(title: Text('履歴')),
       body: Stack(
         children: [
           FutureBuilder<List<Note>>(
@@ -46,6 +46,8 @@ class HistoryScreenState extends State<HistoryScreen> {
                 return Center(child: CircularProgressIndicator());
               }
               final notes = snapshot.data!;
+              notes.sort((a, b) =>
+                  b.dateUpdate.compareTo(a.dateUpdate)); // dateUpdate の降順にソート
               return ListView.builder(
                 itemCount: notes.length,
                 itemBuilder: (context, index) {
@@ -66,15 +68,6 @@ class HistoryScreenState extends State<HistoryScreen> {
               );
             },
           ),
-          // ElevatedButton(
-          //   onPressed: () async {
-          //     await DatabaseService.instance.addNote(
-          //       Note(title: 'NEW_${getCurrentDateTime()}', content: '詳細情報'),
-          //     );
-          //     _refreshNotes();
-          //   },
-          //   child: Icon(Icons.add),
-          // ),
           Align(
             alignment: Alignment.bottomCenter,
             child: NavigationScreen(),

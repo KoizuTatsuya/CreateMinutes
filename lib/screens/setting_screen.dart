@@ -8,7 +8,7 @@ class SettingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Setting Screen'),
+        title: Text('設定'),
       ),
       body: Stack(
         children: [
@@ -16,7 +16,7 @@ class SettingScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('This is the setting screen'),
+                Text('＊実装途中＊'),
                 SizedBox(height: 100), // スクロール可能なコンテンツの例
               ],
             ),

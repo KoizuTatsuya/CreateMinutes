@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/history_screen.dart';
 import 'navigation_screen.dart';
 import '../components/database_service.dart';
 import '../components/note.dart';
@@ -9,7 +10,6 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:external_path/external_path.dart';
-
 
 class RecordingScreen extends StatefulWidget {
   // const HistoryScreen({super.key});
@@ -22,11 +22,17 @@ class RecordingScreenState extends State<RecordingScreen> {
   late Future<List<Note>> _notesList;
   String _statusText = "録音開始"; // 初期状態のボタンテキスト
   bool _isRecording = false; // 録音中かどうかのフラグ
+  final TextEditingController _titleController =
+      TextEditingController(); // title入力用コントローラー
+  final TextEditingController _contentController =
+      TextEditingController(); // content入力用コントローラー
+  String _dateCreate = ""; // date_createフィールド
 
   @override
   void initState() {
     super.initState();
     _notesList = DatabaseService.instance.getNotes();
+    _dateCreate = getCurrentDateTime(); // 初期化時に現在時刻をセット
   }
 
   String getCurrentDateTime() {
@@ -41,7 +47,7 @@ class RecordingScreenState extends State<RecordingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Recording Screen'),
+        title: Text('新規データ'),
       ),
       body: Stack(
         children: [
@@ -49,8 +55,30 @@ class RecordingScreenState extends State<RecordingScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('This is the recording screen'),
-                Text(_statusText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), 
+                SizedBox(height: 20),
+                TextField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: '件名',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 1,
+                ),
+                SizedBox(height: 20),
+                Text('Date Create: $_dateCreate'),
+                SizedBox(height: 20),
+                TextField(
+                  controller: _contentController,
+                  decoration: InputDecoration(
+                    labelText: 'メモ',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: null,
+                ),
+                SizedBox(height: 20),
+                Text(_statusText,
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () async {
@@ -68,17 +96,24 @@ class RecordingScreenState extends State<RecordingScreen> {
                       });
 
                       await recordingProvider.stopRecording(); // 録音停止
-                      await _saveTranscribedText(context); // Gemini に連携 & 文字起こし結果を保存
+                      await _saveTranscribedText(
+                          context); // Gemini に連携 & 文字起こし結果を保存
 
                       setState(() {
                         _statusText = "作成完了! ${_getFileName()}";
                         _isRecording = false;
                       });
-                    } 
+                    }
                   },
-                child: Text(_isRecording ? "録音停止" : "録音開始"),
+                  child: Text(_isRecording ? "録音停止" : "録音開始"),
                 ),
-
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _addNote();
+                  },
+                  child: Text('データ登録'),
+                ),
               ],
             ),
           ),
@@ -91,13 +126,37 @@ class RecordingScreenState extends State<RecordingScreen> {
     );
   }
 
-   /// 録音音声を Gemini で文字起こしし、フォルダに保存
+  Future<void> _addNote() async {
+    final newNote = Note(
+      title: _titleController.text,
+      content: _contentController.text,
+      dateCreate: _dateCreate,
+      dateUpdate: getCurrentDateTime(),
+      labelId: 0,
+      pathSaved: '',
+      flagPin: false,
+    );
+
+    await DatabaseService.instance.addNote(newNote);
+    //print('Note added: ${newNote.toMap()}');
+
+    //データ登録が完了したら画面遷移
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HistoryScreen(),
+      ),
+    );
+  }
+
+  /// 録音音声を Gemini で文字起こしし、フォルダに保存
   Future<void> _saveTranscribedText(BuildContext context) async {
     // 文字おこし
-    final recordingProvider = Provider.of<RecordingProvider>(context, listen: false);
+    final recordingProvider =
+        Provider.of<RecordingProvider>(context, listen: false);
 
     await recordingProvider.transcribeAudio(); // Gemini で文字起こし
-    String savedContentO =recordingProvider.minutesFormattedText;
+    String savedContentO = recordingProvider.minutesFormattedText;
 
     if (await Permission.manageExternalStorage.request().isDenied) {
       print("ストレージ権限が拒否されました");
@@ -105,7 +164,8 @@ class RecordingScreenState extends State<RecordingScreen> {
     }
 
     // Dowloadフォルダに保存
-    final directory = await ExternalPath.getExternalStoragePublicDirectory(ExternalPath.DIRECTORY_DOWNLOAD);;
+    final directory = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOAD);
     final filePath = '$directory/${_getFileName()}';
 
     try {
@@ -130,10 +190,9 @@ class RecordingScreenState extends State<RecordingScreen> {
     }
 
     print("保存完了: $filePath");
-    
   }
 
-    /// ユーザーがアクセスできるフォルダを作成
+  /// ユーザーがアクセスできるフォルダを作成
   Future<Directory> _createFolder(String saveFolderPath) async {
     // ダウンロードフォルダのパスを取得
     final folderName = DateFormat('yyyyMMddHHmmss').format(DateTime.now());
@@ -144,12 +203,11 @@ class RecordingScreenState extends State<RecordingScreen> {
       await newFolder.create(recursive: true);
     }
 
-    return newFolder;  // 保存フォルダを返す
+    return newFolder; // 保存フォルダを返す
   }
 
-    /// 文字起こしの保存ファイル名
+  /// 文字起こしの保存ファイル名
   String _getFileName() {
     return 'AiMinutes_${DateFormat('yyyyMMddHHmmss').format(DateTime.now())}.txt';
   }
-  
 }
