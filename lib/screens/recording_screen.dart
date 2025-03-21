@@ -56,6 +56,8 @@ class RecordingScreenState extends State<RecordingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(height: 20),
+                Text('登録日: $_dateCreate'),
+                SizedBox(height: 20),
                 TextField(
                   controller: _titleController,
                   decoration: InputDecoration(
@@ -64,8 +66,6 @@ class RecordingScreenState extends State<RecordingScreen> {
                   ),
                   maxLines: 1,
                 ),
-                SizedBox(height: 20),
-                Text('Date Create: $_dateCreate'),
                 SizedBox(height: 20),
                 TextField(
                   controller: _contentController,
